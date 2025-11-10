@@ -4,44 +4,40 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
-// Глобальная переменная task
-var task string = "world"
+var task string = "Task"
 
-// Структура для парсинга JSON из запроса
-type RequestBody struct {
+type requestBody struct {
 	Task string `json:"task"`
+}
+
+func getTask(c echo.Context) error {
+	return c.String(http.StatusOK, "Hello "+task)
+}
+
+func postTask(c echo.Context) error {
+	var req requestBody
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
+	}
+
+	task = req.Task
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Task update successfully", "task": task})
 }
 
 func main() {
 	e := echo.New()
 
-	// GET handler - возвращает "hello, {task}"
-	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "hello, "+task)
-	})
+	e.Use(middleware.CORS())
+	e.Use(middleware.Logger())
 
-	// POST handler - принимает JSON и обновляет task
-	e.POST("/task", func(c echo.Context) error {
-		var requestBody RequestBody
+	e.GET("/", getTask)
+	e.POST("/task", postTask)
 
-		// Парсим JSON из тела запроса
-		if err := c.Bind(&requestBody); err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid JSON",
-			})
-		}
-
-		// Обновляем глобальную переменную task
-		task = requestBody.Task
-
-		return c.JSON(http.StatusOK, map[string]string{
-			"message": "Task updated successfully",
-			"task":    task,
-		})
-	})
-
-	// Запускаем сервер на порту 8080
+	// запуск сервера на порту 8080
 	e.Logger.Fatal(e.Start(":8080"))
 }
